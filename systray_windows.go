@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package systray
@@ -37,6 +38,7 @@ var (
 	pCreateWindowEx        = u32.NewProc("CreateWindowExW")
 	pDefWindowProc         = u32.NewProc("DefWindowProcW")
 	pRemoveMenu            = u32.NewProc("RemoveMenu")
+	pDestroyMenu           = u32.NewProc("DestroyMenu")
 	pDestroyWindow         = u32.NewProc("DestroyWindow")
 	pDispatchMessage       = u32.NewProc("DispatchMessageW")
 	pDrawIconEx            = u32.NewProc("DrawIconEx")
@@ -637,6 +639,50 @@ func (t *winTray) hideMenuItem(menuItemId, parentId uint32) error {
 	return nil
 }
 
+func (t *winTray) destroyMenu(itemId uint32) error {
+	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroymenu
+	const ERROR_SUCCESS syscall.Errno = 0
+
+	t.muMenus.RLock()
+	menu := uintptr(t.menus[itemId])
+	t.muMenus.RUnlock()
+	res, _, err := pRemoveMenu.Call(
+		menu,
+	)
+	if res == 0 && err.(syscall.Errno) != ERROR_SUCCESS {
+		return err
+	}
+
+	t.muMenus.Lock()
+	defer t.muMenus.Unlock()
+	t.muMenuOf.Lock()
+	defer t.muMenuOf.Unlock()
+	t.muMenuItemIcons.Lock()
+	defer t.muMenuItemIcons.Unlock()
+	t.muVisibleItems.Lock()
+
+	// Remove item in the menus map.
+	delete(t.menus, itemId)
+
+	// Remove item and child items in the menuOf map and menuItemIcons map.
+	for menuItemId := range t.visibleItems[itemId] {
+		delete(t.menuOf, uint32(menuItemId))
+		delete(t.menuItemIcons, uint32(menuItemId))
+	}
+	delete(t.menuOf, itemId)
+	delete(t.menuItemIcons, itemId)
+
+	// Remove item and child items in the visibleItems map.
+	t.muVisibleItems.Unlock()
+	parentId := menuItems[itemId].parentId()
+	t.delFromVisibleItems(parentId, itemId)
+	t.muVisibleItems.Lock()
+	defer t.muVisibleItems.Unlock()
+	delete(t.visibleItems, itemId)
+
+	return nil
+}
+
 func (t *winTray) showMenu() error {
 	const (
 		TPM_BOTTOMALIGN = 0x0020
@@ -913,6 +959,10 @@ func addOrUpdateMenuItem(item *MenuItem) {
 		log.Errorf("Unable to addOrUpdateMenuItem: %v", err)
 		return
 	}
+}
+
+func resetMenu(parentId uint32) error {
+	return wt.destroyMenu(parentId)
 }
 
 // SetTemplateIcon sets the icon of a menu item as a template icon (on macOS). On Windows, it

@@ -71,6 +71,16 @@ func newMenuItem(title string, tooltip string, parent *MenuItem) *MenuItem {
 	}
 }
 
+// resetMenuItem populate a MenuItem object
+func resetMenuItem(item *MenuItem, parent *MenuItem) {
+	item.ClickedCh = make(chan struct{})
+	item.id = atomic.AddUint32(&currentID, 1)
+	item.disabled = false
+	item.checked = false
+	item.isCheckable = false
+	item.parent = parent
+}
+
 // Run initializes GUI and starts the event loop, then invokes the onReady
 // callback. It blocks until systray.Quit() is called.
 func Run(onReady func(), onExit func()) {
@@ -109,6 +119,27 @@ func Register(onReady func(), onExit func()) {
 // Quit the systray
 func Quit() {
 	quitOnce.Do(quit)
+}
+
+func SetMenu(items []*MenuItem, parent *MenuItem) error {
+	if parent == nil {
+		err := resetMenu(0)
+		if err != nil {
+			return fmt.Errorf("error resetting menu: %v", err)
+		}
+		currentID = 0
+	} else {
+		err := resetMenu(parent.id)
+		if err != nil {
+			return fmt.Errorf("error resetting menu: %v", err)
+		}
+	}
+
+	for _, item := range items {
+		resetMenuItem(item, parent)
+		item.update()
+	}
+	return nil
 }
 
 // AddMenuItem adds a menu item with the designated title and tooltip.
