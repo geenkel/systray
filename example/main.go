@@ -5,8 +5,9 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/getlantern/systray"
-	"github.com/getlantern/systray/example/icon"
+	"github.com/geenkel/systray"
+	"github.com/geenkel/systray/example/icon"
+	"github.com/labstack/gommon/log"
 )
 
 func main() {
@@ -14,7 +15,7 @@ func main() {
 		now := time.Now()
 		ioutil.WriteFile(fmt.Sprintf(`on_exit_%d.txt`, now.UnixNano()), []byte(now.String()), 0644)
 	}
-
+	log.Errorf("Starting systray")
 	systray.Run(onReady, onExit)
 }
 
