@@ -9,4 +9,5 @@ Debug
 dll/systray_unsigned.dll
 out.txt
 .vs
+.vscode
 on_exit*.txt

@@ -22,7 +22,7 @@ func onReady() {
 	systray.SetTemplateIcon(icon.Data, icon.Data)
 	systray.SetTitle("Awesome App")
 	systray.SetTooltip("Lantern")
-	mQuitOrig := systray.AddMenuItem("Quit", "Quit the whole app", 0)
+	mQuitOrig := systray.AddMenuItem("Quit", "Quit the whole app")
 	go func() {
 		<-mQuitOrig.ClickedCh
 		fmt.Println("Requesting quit")
@@ -35,17 +35,67 @@ func onReady() {
 		systray.SetTemplateIcon(icon.Data, icon.Data)
 		systray.SetTitle("Awesome App")
 		systray.SetTooltip("Pretty awesome棒棒嗒")
-		systray.AddMenuItem("1", "Ignored")
-		systray.AddMenuItem("2", "Ignored")
-		systray.AddMenuItem("3", "Ignored")
-		item4 := systray.AddMenuItem("4", "Ignored")
-		item4.AddSubMenuItem("4.1", "Ignored")
-		item42 := item4.AddSubMenuItem("4.2", "Ignored")
-		item42.AddSubMenuItem("4.2.1", "Ignored")
-		item42.AddSubMenuItem("4.2.2", "Ignored")
-		item42.AddSubMenuItem("4.2.3", "Ignored")
-		item42.AddSubMenuItem("4.2.3", "Ignored")
 
+		items := []*systray.MenuItem{
+			{
+				Title:   "Item 1",
+				Tooltip: "Item 1 tooltip",
+			},
+			{
+				Title:   "Item 2",
+				Tooltip: "Item 1 tooltip",
+			},
+			{
+				Title:   "Item 3",
+				Tooltip: "Item 1 tooltip",
+			},
+		}
+		systray.SetMenu(items, nil)
+
+		fmt.Println("Adding submenu-----")
+
+		err := items[1].SetMenu(
+			[]*systray.MenuItem{
+				{
+					Title:   "Item 1.1",
+					Tooltip: "Item 1.1 tooltip",
+				},
+				{
+					Title:   "Item 1.2",
+					Tooltip: "Item 1.2 tooltip",
+				},
+			},
+		)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		err = items[1].SetMenu(
+			[]*systray.MenuItem{
+				{
+					Title:   "Item 1.1.1",
+					Tooltip: "Item 1.1 tooltip",
+				},
+				{
+					Title:   "Item 1.2.2",
+					Tooltip: "Item 1.2 tooltip",
+				},
+			},
+		)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		// systray.AddMenuItem("1", "Ignored")
+		// systray.AddMenuItem("2", "Ignored")
+		// systray.AddMenuItem("3", "Ignored")
+		// item4 := systray.AddMenuItem("4", "Ignored")
+		// item4.AddSubMenuItem("4.1", "Ignored")
+		// item42 := item4.AddSubMenuItem("4.2", "Ignored")
+		// item42.AddSubMenuItem("4.2.1", "Ignored")
+		// item42.AddSubMenuItem("4.2.2", "Ignored")
+		// item42.AddSubMenuItem("4.2.3", "Ignored")
+		// item42.AddSubMenuItem("4.2.3", "Ignored")
 		// for i := 0; i < 5; i++ {
 		// 	systray.AddMenuItem(fmt.Sprintf("Do something #%d", i), "Does awesome things")
 		// }

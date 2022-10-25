@@ -33,13 +33,13 @@ func init() {
 type MenuItem struct {
 	// ClickedCh is the channel which will be notified when the menu item is clicked
 	ClickedCh chan struct{}
+	// title is the text shown on menu item
+	Title string
+	// tooltip is the text shown when pointing to menu item
+	Tooltip string
 
 	// id uniquely identify a menu item, not supposed to be modified
 	id uint32
-	// title is the text shown on menu item
-	title string
-	// tooltip is the text shown when pointing to menu item
-	tooltip string
 	// disabled menu item is grayed out and has no effect when clicked
 	disabled bool
 	// checked menu item has a tick before the title
@@ -52,9 +52,9 @@ type MenuItem struct {
 
 func (item *MenuItem) String() string {
 	if item.parent == nil {
-		return fmt.Sprintf("MenuItem[%d, %q]", item.id, item.title)
+		return fmt.Sprintf("MenuItem[%d, %q]", item.id, item.Title)
 	}
-	return fmt.Sprintf("MenuItem[%d, parent %d, %q]", item.id, item.parent.id, item.title)
+	return fmt.Sprintf("MenuItem[%d, parent %d, %q]", item.id, item.parent.id, item.Title)
 }
 
 // newMenuItem returns a populated MenuItem object
@@ -62,8 +62,8 @@ func newMenuItem(title string, tooltip string, parent *MenuItem) *MenuItem {
 	return &MenuItem{
 		ClickedCh:   make(chan struct{}),
 		id:          atomic.AddUint32(&currentID, 1),
-		title:       title,
-		tooltip:     tooltip,
+		Title:       title,
+		Tooltip:     tooltip,
 		disabled:    false,
 		checked:     false,
 		isCheckable: false,
@@ -123,13 +123,14 @@ func Quit() {
 
 func SetMenu(items []*MenuItem, parent *MenuItem) error {
 	if parent == nil {
-		err := resetMenu(0)
+		err := resetMenu(parent)
 		if err != nil {
 			return fmt.Errorf("error resetting menu: %v", err)
 		}
 		currentID = 0
 	} else {
-		err := resetMenu(parent.id)
+		fmt.Println("SET SUB MENU ", parent.Title)
+		err := resetMenu(parent)
 		if err != nil {
 			return fmt.Errorf("error resetting menu: %v", err)
 		}
@@ -187,15 +188,20 @@ func (item *MenuItem) AddSubMenuItemCheckbox(title string, tooltip string, check
 	return child
 }
 
+// SetMenu set the submenu items of the item.
+func (item *MenuItem) SetMenu(items []*MenuItem) error {
+	return SetMenu(items, item)
+}
+
 // SetTitle set the text to display on a menu item
 func (item *MenuItem) SetTitle(title string) {
-	item.title = title
+	item.Title = title
 	item.update()
 }
 
 // SetTooltip set the tooltip to show when mouse hover
 func (item *MenuItem) SetTooltip(tooltip string) {
-	item.tooltip = tooltip
+	item.Tooltip = tooltip
 	item.update()
 }
 

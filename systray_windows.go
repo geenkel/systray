@@ -6,6 +6,7 @@ package systray
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -641,12 +642,22 @@ func (t *winTray) hideMenuItem(menuItemId, parentId uint32) error {
 
 func (t *winTray) destroyMenu(itemId uint32) error {
 	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroymenu
+
+	fmt.Println("Destroy Menu ", itemId)
+
+	// Check if it is a menu.
 	const ERROR_SUCCESS syscall.Errno = 0
 
 	t.muMenus.RLock()
-	menu := uintptr(t.menus[itemId])
+	menuHandle, exists := t.menus[itemId]
+	if !exists {
+		fmt.Println("It is not a menu, cancelled ", itemId)
+		t.muMenus.RUnlock()
+		return nil
+	}
+	menu := uintptr(menuHandle)
 	t.muMenus.RUnlock()
-	res, _, err := pRemoveMenu.Call(
+	res, _, err := pDestroyMenu.Call(
 		menu,
 	)
 	if res == 0 && err.(syscall.Errno) != ERROR_SUCCESS {
@@ -654,7 +665,6 @@ func (t *winTray) destroyMenu(itemId uint32) error {
 	}
 
 	t.muMenus.Lock()
-	defer t.muMenus.Unlock()
 	t.muMenuOf.Lock()
 	defer t.muMenuOf.Unlock()
 	t.muMenuItemIcons.Lock()
@@ -674,11 +684,38 @@ func (t *winTray) destroyMenu(itemId uint32) error {
 
 	// Remove item and child items in the visibleItems map.
 	t.muVisibleItems.Unlock()
-	parentId := menuItems[itemId].parentId()
-	t.delFromVisibleItems(parentId, itemId)
+	t.muMenus.Unlock()
+	menuItem, found := menuItems[itemId]
+	if found {
+		t.hideMenuItem(itemId, menuItem.parentId())
+		// t.delFromVisibleItems(menuItem.parentId(), itemId)
+	}
 	t.muVisibleItems.Lock()
 	defer t.muVisibleItems.Unlock()
 	delete(t.visibleItems, itemId)
+
+	fmt.Println("-----------------------------------")
+	fmt.Println("Visible items:")
+	for key, val := range t.visibleItems { // Delete[parentId]
+		fmt.Println("Key ", key, " - ", val)
+	}
+	fmt.Println("Menu itews:")
+	for key, val := range menuItems { // Delete padre e hijos. checando en visible items.
+		fmt.Println("Key ", key, " - ", val.id)
+	}
+	fmt.Println("Menus:")
+	for key, _ := range t.menus { // Delete[parentId]
+		fmt.Println("Key ", key, " - ", "handle")
+	}
+	fmt.Println("Menu item icons:")
+	for key, _ := range t.menuItemIcons { // Delete padre e hijos. checando en visible items.
+		fmt.Println("Key ", key, " - ", "handle")
+	}
+	fmt.Println("Menu of:")
+	for key, _ := range t.menuOf { // Delete padre e hijos. checando en visible items.
+		fmt.Println("Key ", key, " - ", "handle")
+	}
+	fmt.Println("-----------------------------------")
 
 	return nil
 }
@@ -733,6 +770,29 @@ func (t *winTray) addToVisibleItems(parent, val uint32) {
 		sort.Slice(newvisible, func(i, j int) bool { return newvisible[i] < newvisible[j] })
 		t.visibleItems[parent] = newvisible
 	}
+
+	fmt.Println("-----------------------------------")
+	fmt.Println("Visible items:")
+	for key, val := range t.visibleItems { // Delete[parentId]
+		fmt.Println("Key ", key, " - ", val)
+	}
+	fmt.Println("Menu itews:")
+	for key, val := range menuItems { // Delete padre e hijos. checando en visible items.
+		fmt.Println("Key ", key, " - ", val.id)
+	}
+	fmt.Println("Menus:")
+	for key, _ := range t.menus { // Delete[parentId]
+		fmt.Println("Key ", key, " - ", "handle")
+	}
+	fmt.Println("Menu item icons:")
+	for key, _ := range t.menuItemIcons { // Delete padre e hijos. checando en visible items.
+		fmt.Println("Key ", key, " - ", "handle")
+	}
+	fmt.Println("Menu of:")
+	for key, _ := range t.menuOf { // Delete padre e hijos. checando en visible items.
+		fmt.Println("Key ", key, " - ", "handle")
+	}
+	fmt.Println("-----------------------------------")
 }
 
 func (t *winTray) getVisibleItemIndex(parent, val uint32) int {
@@ -937,7 +997,7 @@ func (item *MenuItem) SetIcon(iconBytes []byte) {
 	wt.menuItemIcons[uint32(item.id)] = h
 	wt.muMenuItemIcons.Unlock()
 
-	err = wt.addOrUpdateMenuItem(uint32(item.id), item.parentId(), item.title, item.disabled, item.checked)
+	err = wt.addOrUpdateMenuItem(uint32(item.id), item.parentId(), item.Title, item.disabled, item.checked)
 	if err != nil {
 		log.Errorf("Unable to addOrUpdateMenuItem: %v", err)
 		return
@@ -954,15 +1014,37 @@ func SetTooltip(tooltip string) {
 }
 
 func addOrUpdateMenuItem(item *MenuItem) {
-	err := wt.addOrUpdateMenuItem(uint32(item.id), item.parentId(), item.title, item.disabled, item.checked)
+	err := wt.addOrUpdateMenuItem(uint32(item.id), item.parentId(), item.Title, item.disabled, item.checked)
 	if err != nil {
 		log.Errorf("Unable to addOrUpdateMenuItem: %v", err)
 		return
 	}
 }
 
-func resetMenu(parentId uint32) error {
-	return wt.destroyMenu(parentId)
+func resetMenu(item *MenuItem) error {
+	var id uint32 = 0
+	if item != nil {
+		id = item.id
+	}
+	// Check if it has sub menu
+	_, exist := wt.menus[id]
+	if !exist {
+		return nil
+	}
+
+	if err := wt.destroyMenu(id); err != nil {
+		return fmt.Errorf("unable to destroy menu: %v", err)
+	}
+
+	if id == 0 {
+		if err := wt.createMenu(); err != nil {
+			return err
+		}
+	} else {
+		//resetMenuItem(item, item.parent)
+		addOrUpdateMenuItem(item)
+	}
+	return nil
 }
 
 // SetTemplateIcon sets the icon of a menu item as a template icon (on macOS). On Windows, it
