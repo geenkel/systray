@@ -540,7 +540,7 @@ func (t *winTray) addOrUpdateMenuItem(menuItemId uint32, parentId uint32, title 
 	if !exists {
 		menu, err = t.convertToSubMenu(parentId)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to convert menu item %d to submenu: %v", parentId, err)
 		}
 		t.muMenus.Lock()
 		t.menus[parentId] = menu
@@ -574,7 +574,7 @@ func (t *winTray) addOrUpdateMenuItem(menuItemId uint32, parentId uint32, title 
 		)
 		if res == 0 {
 			t.delFromVisibleItems(parentId, menuItemId)
-			return err
+			return fmt.Errorf("WINAPI: failed to insert menu item %d: %v", menuItemId, err)
 		}
 		t.muMenuOf.Lock()
 		t.menuOf[menuItemId] = menu
@@ -643,15 +643,12 @@ func (t *winTray) hideMenuItem(menuItemId, parentId uint32) error {
 func (t *winTray) destroyMenu(itemId uint32) error {
 	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroymenu
 
-	fmt.Println("Destroy Menu ", itemId)
-
 	// Check if it is a menu.
 	const ERROR_SUCCESS syscall.Errno = 0
 
 	t.muMenus.RLock()
 	menuHandle, exists := t.menus[itemId]
 	if !exists {
-		fmt.Println("It is not a menu, cancelled ", itemId)
 		t.muMenus.RUnlock()
 		return nil
 	}
@@ -678,6 +675,9 @@ func (t *winTray) destroyMenu(itemId uint32) error {
 	for menuItemId := range t.visibleItems[itemId] {
 		delete(t.menuOf, uint32(menuItemId))
 		delete(t.menuItemIcons, uint32(menuItemId))
+		delete(t.visibleItems, uint32(menuItemId))
+		delete(t.menus, uint32(menuItemId))
+
 	}
 	delete(t.menuOf, itemId)
 	delete(t.menuItemIcons, itemId)
@@ -693,29 +693,6 @@ func (t *winTray) destroyMenu(itemId uint32) error {
 	t.muVisibleItems.Lock()
 	defer t.muVisibleItems.Unlock()
 	delete(t.visibleItems, itemId)
-
-	fmt.Println("-----------------------------------")
-	fmt.Println("Visible items:")
-	for key, val := range t.visibleItems { // Delete[parentId]
-		fmt.Println("Key ", key, " - ", val)
-	}
-	fmt.Println("Menu itews:")
-	for key, val := range menuItems { // Delete padre e hijos. checando en visible items.
-		fmt.Println("Key ", key, " - ", val.id)
-	}
-	fmt.Println("Menus:")
-	for key, _ := range t.menus { // Delete[parentId]
-		fmt.Println("Key ", key, " - ", "handle")
-	}
-	fmt.Println("Menu item icons:")
-	for key, _ := range t.menuItemIcons { // Delete padre e hijos. checando en visible items.
-		fmt.Println("Key ", key, " - ", "handle")
-	}
-	fmt.Println("Menu of:")
-	for key, _ := range t.menuOf { // Delete padre e hijos. checando en visible items.
-		fmt.Println("Key ", key, " - ", "handle")
-	}
-	fmt.Println("-----------------------------------")
 
 	return nil
 }
@@ -770,29 +747,6 @@ func (t *winTray) addToVisibleItems(parent, val uint32) {
 		sort.Slice(newvisible, func(i, j int) bool { return newvisible[i] < newvisible[j] })
 		t.visibleItems[parent] = newvisible
 	}
-
-	fmt.Println("-----------------------------------")
-	fmt.Println("Visible items:")
-	for key, val := range t.visibleItems { // Delete[parentId]
-		fmt.Println("Key ", key, " - ", val)
-	}
-	fmt.Println("Menu itews:")
-	for key, val := range menuItems { // Delete padre e hijos. checando en visible items.
-		fmt.Println("Key ", key, " - ", val.id)
-	}
-	fmt.Println("Menus:")
-	for key, _ := range t.menus { // Delete[parentId]
-		fmt.Println("Key ", key, " - ", "handle")
-	}
-	fmt.Println("Menu item icons:")
-	for key, _ := range t.menuItemIcons { // Delete padre e hijos. checando en visible items.
-		fmt.Println("Key ", key, " - ", "handle")
-	}
-	fmt.Println("Menu of:")
-	for key, _ := range t.menuOf { // Delete padre e hijos. checando en visible items.
-		fmt.Println("Key ", key, " - ", "handle")
-	}
-	fmt.Println("-----------------------------------")
 }
 
 func (t *winTray) getVisibleItemIndex(parent, val uint32) int {
@@ -1016,7 +970,7 @@ func SetTooltip(tooltip string) {
 func addOrUpdateMenuItem(item *MenuItem) {
 	err := wt.addOrUpdateMenuItem(uint32(item.id), item.parentId(), item.Title, item.disabled, item.checked)
 	if err != nil {
-		fmt.Printf("Unable to addOrUpdateMenuItem: %v", err)
+		fmt.Printf("Unable to addOrUpdateMenuItem: %v\n", err)
 		return
 	}
 }

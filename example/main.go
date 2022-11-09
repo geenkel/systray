@@ -26,9 +26,7 @@ func onReady() {
 	mQuitOrig := systray.AddMenuItem("Quit", "Quit the whole app")
 	go func() {
 		<-mQuitOrig.ClickedCh
-		fmt.Println("Requesting quit")
 		systray.Quit()
-		fmt.Println("Finished quitting")
 	}()
 
 	// We can manipulate the systray in other goroutines

@@ -53,7 +53,16 @@ func (item *MenuItem) String() string {
 	return fmt.Sprintf("MenuItem[%d, parent %d, %q]", item.id, item.parent.id, item.Title)
 }
 
-// newMenuItem returns a populated MenuItem object
+// NewMenuItem returns a populated MenuItem object.
+func NewMenuItem(title string, tooltip string) *MenuItem {
+	return &MenuItem{
+		ClickedCh: make(chan struct{}),
+		Title:     title,
+		Tooltip:   tooltip,
+	}
+}
+
+// newMenuItem returns a populated MenuItem object for internal usage.
 func newMenuItem(title string, tooltip string, parent *MenuItem) *MenuItem {
 	return &MenuItem{
 		ClickedCh:   make(chan struct{}),
@@ -67,9 +76,8 @@ func newMenuItem(title string, tooltip string, parent *MenuItem) *MenuItem {
 	}
 }
 
-// resetMenuItem populate a MenuItem object
+// resetMenuItem reset the id and internal state of a menu item
 func resetMenuItem(item *MenuItem, parent *MenuItem) {
-	item.ClickedCh = make(chan struct{})
 	item.id = atomic.AddUint32(&currentID, 1)
 	item.disabled = false
 	item.checked = false
@@ -125,7 +133,6 @@ func SetMenu(items []*MenuItem, parent *MenuItem) error {
 		}
 		currentID = 0
 	} else {
-		fmt.Println("SET SUB MENU ", parent.Title)
 		err := resetMenu(parent)
 		if err != nil {
 			return fmt.Errorf("error resetting menu: %v", err)
