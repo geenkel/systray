@@ -1,3 +1,5 @@
+This is a fork of the  repository https://github.com/getlantern/systray with some modifications to add the hability to destroy and set a new entire menu.
+
 systray is a cross-platform Go library to place an icon and menu in the notification area.
 
 ## Features
@@ -16,7 +18,7 @@ func main() {
 func onReady() {
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("Awesome App")
-	systray.SetTooltip("Pretty awesome超级棒")
+	systray.SetTooltip("Pretty awesome")
 	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
 
 	// Sets the icon of a menu item. Only available on Mac and Windows.
@@ -28,43 +30,8 @@ func onExit() {
 }
 ```
 
-See [full API](https://pkg.go.dev/github.com/getlantern/systray?tab=doc) as well as [CHANGELOG](https://github.com/getlantern/systray/tree/master/CHANGELOG.md).
-
 Note: this package requires cgo, so make sure you set `CGO_ENABLED=1` before building.
 
-## Try the example app!
-
-Have go v1.12+ or higher installed? Here's an example to get started on macOS:
-
-```sh
-git clone https://github.com/getlantern/systray
-cd example
-env GO111MODULE=on go build
-./example
-```
-
-On Windows, you should build like this:
-
-```
-env GO111MODULE=on go build -ldflags "-H=windowsgui"
-```
-
-The following text will then appear on the console:
-
-
-```sh
-go: finding github.com/skratchdot/open-golang latest
-go: finding github.com/getlantern/systray latest
-go: finding github.com/getlantern/golog latest
-```
-
-Now look for *Awesome App* in your menu bar!
-
-![Awesome App screenshot](example/screenshot.png)
-
-## The Webview example
-
-The code under `webview_example` is to demostrate how it can co-exist with other UI elements. Note that the example doesn't work on macOS versions older than 10.15 Catalina.
 
 ## Platform notes
 
@@ -125,5 +92,6 @@ Consult the [Official Apple Documentation here](https://developer.apple.com/libr
 
 ## Credits
 
+- https://github.com/getlantern/systray
 - https://github.com/xilp/systray
 - https://github.com/cratonica/trayhost
